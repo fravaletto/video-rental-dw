@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Система учета в видеопрокате (Вариант 14) — Хранилища данных</title>
+    <!-- Интерактивная отрисовка схем через Mermaid -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 30px;
+            background-color: #f4f6f9;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .badge {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        h2 {
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+            margin-top: 40px;
+            color: #2980b9;
+        }
+        .diagram-container {
+            text-align: center;
+            margin: 20px 0;
+            background: #ffffff;
+            padding: 20px;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            margin-bottom: 25px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Система учета в видеопрокате</h1>
+        <div class="badge">Вариант 14</div>
+        <p>Лабораторные работы по дисциплине «Хранилища данных» | Московский Политех</p>
+    </header>
+
+    <h2>1. Реляционная модель (3-я нормальная форма — 3NF)</h2>
+    <p>Структура операционной базы данных реляционного уровня:</p>
+    
+    <div class="diagram-container">
+        <pre class="mermaid">
+erDiagram
+    client {
+        int client_id PK
+        string full_name
+        string phone UK
+        string email UK
+        text address
+    }
+    movie {
+        int movie_id PK
+        string title
+        string genre
+        int release_year
+        numeric rental_rate
+    }
+    employee {
+        int employee_id PK
+        string full_name
+        string phone UK
+        string position
+    }
+    rental {
+        int rental_id PK
+        timestamp rental_date
+        date due_date
+        date return_date
+        string status
+        int client_id FK
+        int employee_id FK
+    }
+    rental_item {
+        int rental_id PK, FK
+        int movie_id PK, FK
+        numeric fee
+    }
+
+    client ||--o{ rental : "оформляет"
+    employee ||--o{ rental : "обрабатывает"
+    rental ||--|{ rental_item : "содержит"
+    movie ||--o{ rental_item : "включается"
+        </pre>
+    </div>
+
+    <h3>Таблицы схемы <code>3nf</code>:</h3>
+    <table>
+        <tr><th>Таблица</th><th>Описание</th></tr>
+        <tr><td><code>client</code></td><td>Справочник клиентов видеопроката</td></tr>
+        <tr><td><code>movie</code></td><td>Каталог доступных фильмов</td></tr>
+        <tr><td><code>employee</code></td><td>Сотрудники пункта проката</td></tr>
+        <tr><td><code>rental</code></td><td>Журнал заказов (аренды) фильмов</td></tr>
+        <tr><td><code>rental_item</code></td><td>Позиции заказа (какие фильмы взяли)</td></tr>
+    </table>
+
+    <h2>2. Модель Data Vault 2.0 (Хранилище данных)</h2>
+    <p>Архитектура хранилища сырых данных (Хабы, Ссылки, Сателлиты):</p>
+
+    <div class="diagram-container">
+        <pre class="mermaid">
+erDiagram
+    hub_client {
+        uuid client_hkey PK
+        string client_bk UK
+        timestamp load_date
+        string record_source
+    }
+    sat_client {
+        uuid client_hkey PK, FK
+        string full_name
+        string email
+        text address
+        timestamp load_date PK
+        string record_source
+    }
+    hub_movie {
+        uuid movie_hkey PK
+        string movie_bk UK
+        timestamp load_date
+        string record_source
+    }
+    sat_movie {
+        uuid movie_hkey PK, FK
+        string title
+        string genre
+        int release_year
+        numeric rental_rate
+        timestamp load_date PK
+        string record_source
+    }
+    hub_employee {
+        uuid employee_hkey PK
+        string employee_bk UK
+        timestamp load_date
+        string record_source
+    }
+    sat_employee {
+        uuid employee_hkey PK, FK
+        string full_name
+        string position
+        timestamp load_date PK
+        string record_source
+    }
+    hub_rental {
+        uuid rental_hkey PK
+        string rental_bk UK
+        timestamp load_date
+        string record_source
+    }
+    sat_rental {
+        uuid rental_hkey PK, FK
+        timestamp rental_date
+        date due_date
+        date return_date
+        string status
+        timestamp load_date PK
+        string record_source
+    }
+    link_rental_client {
+        uuid link_rental_client_hkey PK
+        uuid rental_hkey FK
+        uuid client_hkey FK
+        timestamp load_date
+        string record_source
+    }
+    link_rental_movie {
+        uuid link_rental_movie_hkey PK
+        uuid rental_hkey FK
+        uuid movie_hkey FK
+        timestamp load_date
+        string record_source
+    }
+    sat_rental_movie {
+        uuid link_rental_movie_hkey PK, FK
+        numeric fee
+        timestamp load_date PK
+        string record_source
+    }
+
+    hub_client ||--o{ sat_client : "sat"
+    hub_movie ||--o{ sat_movie : "sat"
+    hub_employee ||--o{ sat_employee : "sat"
+    hub_rental ||--o{ sat_rental : "sat"
+    hub_rental ||--o{ link_rental_client : "link"
+    hub_client ||--o{ link_rental_client : "link"
+    hub_rental ||--o{ link_rental_movie : "link"
+    hub_movie ||--o{ link_rental_movie : "link"
+    link_rental_movie ||--o{ sat_rental_movie : "sat"
+        </pre>
+    </div>
+</div>
+
+<script>
+    mermaid.initialize({ startOnLoad: true, theme: 'default' });
+</script>
+</body>
+</html>
